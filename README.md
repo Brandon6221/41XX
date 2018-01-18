@@ -5,11 +5,6 @@ ________________________________________________________________________________
 
 Not Implimented
 
-!!! - How to impliment Alarms as seperate tasks which pre-empt all system menus? 
-!!! - Prompt will begin dispensing upon agknowledgement
-!!! - All other system features hault. Perhaps read from Hardsave to prevent trying to dispense as updating time?
-!!! - Dispensing prompts must accumulate. One prompt arriving while another is going off should cause it to wait.
-
 - GUI intended to be designed with control buttons across bottom 1/3 of screen. Arrows on left and right and a select and 
   return button in the middle, totalling 4 buttons. Top 2/3 of screen are for displaying information and occasion keyboards
 - Inbounds check for barcode information when adding a user. Will be required in the userMenu Update Barcode section as well
@@ -26,8 +21,10 @@ Implimented
 		---Options in System Menu are; AddUser(), ClearUser(); and Factory Defualt (Option seem self explanitory)
 		---Options in User Menu are; changeAlarmTime(), changeAlarmTone(), updatePerscription(), userPasswordSettings()
 	--Save and exit is final main menu option
-
-
+- impliment Alarms as seperate tasks which pre-empt all system menus? 
+- Prompt will begin dispensing upon agknowledgement
+- All other system features hault. Perhaps read from Hardsave to prevent trying to dispense as updating time?
+- Dispensing prompts must accumulate. One prompt arriving while another is going off should cause it to wait.
 
 
 -Hardsave feature. Saves on new users and other changes to settings.

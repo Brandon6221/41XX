@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+#include <unistd.h>
+#include <signal.h>
 
 int systemPassword;
 typedef enum{ false=0, true=1 } bool;
@@ -25,6 +28,7 @@ typedef struct userData{
 	bool alarmsAct[3];
 	bool passAct; //User may or may not have a password
 	int userPass; //User password to update perscription (Can be Null)
+
 }user;
 //Runs users through the prompts required to initialize a user profile
 //Will eventually be mostly barcode and data storage
@@ -461,12 +465,12 @@ int systemSettings(user* Users, int numUsers)
 					printf("Which user would you like to delete?\n");
 					scanf("%d",&i);
 
-					if(i>=numUsers || numUsers == 0)
+					if(i>numUsers || numUsers == 0)
 					{
 						printf("Invalid User or no users to delete\n");
 					}
 					else{
-						strcpy(Users[i].userName,"delete");
+						strcpy(Users[i-1].userName,"delete");
 						save(Users, numUsers);
 					}
 					break;
@@ -514,7 +518,16 @@ int main()
 	int i,j,k;
 	int menuSelect;
 	int numUsers = 0;
-	char temp[50];
+	char temp[100];
+	time_t rawtime;
+  	struct tm * timeinfo;
+  	char day[10];
+  	char month[10];
+  	int date;
+  	int hr,min,sec,yr;
+  	int PID;
+  	bool userChild[5];
+	int userProcessID[5];
 	systemPassword=0;
 
 	user * Users = malloc(sizeof(struct userData)*6);
@@ -535,6 +548,98 @@ int main()
 	//Functioning loop of the process
 	while(1)
 	{
+		//Killing of all old, possibly outdated processes to make way for new ones
+  		for(i=0;i<5;i++)
+  		{
+  			if(userChild[i] == true)
+  			{
+  				kill(userProcessID[i], SIGKILL);
+  			}
+  		}
+  		//Creates processes equal to that of users
+  		for(i=0;i<numUsers;i++)
+  		{
+  			//Only allows creation if parents process. This way it generate a process for each user and each break the for loop
+  			if(PID!=0)
+  			{
+  				userChild[i] = true;
+  				PID = fork();
+  				userProcessID[i]=PID;
+  			}
+  			else{
+  				break;	
+  			}
+  		}
+  		//Alarm watching functions for user processes
+  		if(PID==0)
+  		{
+  			i--;
+  			//Mark all userChild processes as false except one this PID is servicing
+  			for(j=i-1;j>-1;j--)
+  			{
+  				userChild[j] = false;
+  			}
+  			for(j=i+1;j<5;j++)
+  			{
+  				userChild[j] = false;
+  			}
+  			//Locate process index and begin sleep/watch cycle
+  			for(i=0;i<5;i++)
+  			{
+  				if(userChild[i]==true)
+  				{
+  					//Process Loop
+  					while(1)
+  					{
+  						usleep(10000000);	//Awake every 10 seconds to check for Medication time
+				  		time(&rawtime);
+						timeinfo = localtime(&rawtime);
+						strcpy(temp,asctime(timeinfo));
+						sscanf(temp, "%s %s %d %d:%d:%d %d", day, month, &date, &hr, &min, &sec, &yr);
+						//Compares current time against alarm times
+						for(j=0;j<3;j++)
+						{
+							//On match print warning to screen and sleep for 60 seconds
+							if((hr*60)+min == Users[i].userAlarms[j])
+							{
+								printf("%s\n", day);
+								printf("TAKE YOUR MEDICATION %s!!! Current Time is ",Users[i].userName);
+								if(hr>12)
+								{
+									printf("%d:%d\n", hr-12, min);
+								}
+								else{
+									printf("%d:%d\n",hr ,min);
+								}
+								numUsers = load(Users);
+								printf("Hi\n");
+								for(k=0; k<6; k++);
+								{
+									//Guarentees active hopper (Broken)
+									if(Users[i].hopperAct[k]==true)
+									{
+										//Ensures pill is subscribed from the alarm sounding ()Broken
+										if((j==0 && (Users[i].hopperTimes[k]==1 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==7)) || (j==1 && (Users[i].hopperTimes[k]==2 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)) || (j==2 && (Users[i].hopperTimes[k]==3 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)))
+										{
+											if((Users[i].hopperDays[k]/10/10/10/10/10/10%10==1 && strcmp(day, "Mon")==0) || (Users[i].hopperDays[k]/10/10/10/10/10%10==1 && strcmp(day, "Tue")==0) || (Users[i].hopperDays[k]/10/10/10/10%10==1 && strcmp(day, "Wed")==0) || (Users[i].hopperDays[k]/10/10/10%10==1 && strcmp(day, "Thu")==0) || (Users[i].hopperDays[k]/10/10%10==1 && strcmp(day, "Fri")==0) || (Users[i].hopperDays[k]/10%10==1 && strcmp(day, "Sat")==0) || (Users[i].hopperDays[k]%10==1 && strcmp(day, "Sun")==0))
+											{
+												printf("Hopper %d distributes %d pills\n",k+1, Users[i].hopperNumDisp[k]);
+											}
+										}
+									}	
+								}
+								usleep(60000000);
+							}
+						}
+  					}
+  				}
+  			}
+  		}
+  		for(i=numUsers; i<5;i++)
+  		{
+  			userChild[i] = false;
+  		}
+
 		//First lists current users
 		printf("\nUsers:\n\n");
 		if(numUsers==0)
@@ -543,7 +648,7 @@ int main()
 		}
 		for(i=0; i<numUsers; i++)
 		{
-			printf("\nUser %d:\nName: %s\n\n", i, Users[i].userName);
+			printf("\nUser %d:\nName: %s\n\n", i+1, Users[i].userName);
 			for(j=0;j<6;j++)
 			{
 				if(Users[i].hopperAct[j] == true)
