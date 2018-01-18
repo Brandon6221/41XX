@@ -12,10 +12,7 @@ Not Implimented
 
 - GUI intended to be designed with control buttons across bottom 1/3 of screen. Arrows on left and right and a select and 
   return button in the middle, totalling 4 buttons. Top 2/3 of screen are for displaying information and occasion keyboards
-- Preferred alarm time is currently set on user creation. Will soon be adjustable via userMenu.
-- Alarm tone adjustment in userMenu
-- Update Prescription layout design in userMenu to prep for storing barcode information
-- Password lock user setting menu behind user password is available
+- Inbounds check for barcode information when adding a user. Will be required in the userMenu Update Barcode section as well
 
 Implimented
 
@@ -27,6 +24,7 @@ Implimented
 	  a password wall
 		---Password fail falls back to Main Menu
 		---Options in System Menu are; AddUser(), ClearUser(); and Factory Defualt (Option seem self explanitory)
+		---Options in User Menu are; changeAlarmTime(), changeAlarmTone(), updatePerscription(), userPasswordSettings()
 	--Save and exit is final main menu option
 
 

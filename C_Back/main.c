@@ -39,7 +39,7 @@ user addUser(user soloUser)
 	{
 		strcpy(soloUser.userName,"delete"); //Null name marked for auto remove
 	}
-	//This loop will be a prompt to scan a barcode. Process data and store
+	//This loop will be a prompt to scan a barcode. Process data and store. Still needs error checking for in range numbers
 	while(menuSelect!=2)
 	{
 		printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
@@ -155,14 +155,156 @@ user clearUser(user soloUser)
 	bool passAct = false;
 	return(soloUser);
 }
-//Unfinnished
+//Allows acces to Perscription changes, alarm tone and time changes, and password setting
 user userMenu(user soloUser)
 {
-	int menuSelect;
-	printf("What would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n");
-	scanf("%d", &menuSelect);
-	strcpy(soloUser.userName,"delete");
-	return (soloUser);
+	int menuSelect, i,j,k;
+	//User Menu process loop
+	while(1)
+	{	
+		k=0;
+		j=1;
+		printf("What would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n5: Return to Main Menu\n");
+		scanf("%d", &menuSelect);
+		switch(menuSelect){
+			//Leads to display allowing selection of which time to update
+			case 1:
+				while(j == 1)
+				{	
+					//Will be a display window with 3 options to scroll between
+					printf("Current Alarms: %d:%d, %d:%d, %d:%d\n",soloUser.userAlarms[0]/60,soloUser.userAlarms[0]%60,soloUser.userAlarms[1]/60,soloUser.userAlarms[1]%60,soloUser.userAlarms[2]/60,soloUser.userAlarms[2]%60);
+					printf("Which alarm to change? 1 = Morning, 2 = MidDay, 3 = Evening\n");
+					scanf("%d", &j);
+					switch(j){
+						case 1:
+							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+							printf("Set Morning alarm to when? (Minutes and military) (After 4:00AM . 12PM)\n");
+							scanf("%d", &i);
+							if(i>1440 || i<480 || i>720 || i>soloUser.userAlarms[1]-120 || (i<soloUser.userAlarms[2]+120 && soloUser.userAlarms[2]>=0 && soloUser.userAlarms[2]<480))
+							{
+								printf("Invalid Morning alarm (Before 2AM or after 12PM)\n");
+							}
+							else{
+								soloUser.userAlarms[0]=i;
+							}
+							break;
+						case 2:
+							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+							printf("Set MidDay alarm to when? (Minutes and military) (After 12:00AM . 6PM)\n");
+							scanf("%d", &i);
+							if(i>1440|| i<720 || i>1080 || (i>soloUser.userAlarms[2]-120 && soloUser.userAlarms[2]>480) || soloUser.userAlarms[0]+120>i)
+							{
+								printf("Invalid MidDay alarm (Before 12PM or after 6PM)\n");
+							}
+							else{
+								soloUser.userAlarms[1]=i;
+							}
+							break;
+						case 3:
+							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+							printf("Set Evening alarm to when? (Minutes and military) (After 6PM . 4AM)\n");
+							scanf("%d", &i);
+							if(i>1440 || (i<1080 && i>480) || i<0 || (i>soloUser.userAlarms[0]-120 && i<480) || (i<soloUser.userAlarms[1]+120 && i>1080))
+							{
+								printf("Invalid Evening alarm (Before 6PM or after 4AM)\n");
+							}
+							else{
+								soloUser.userAlarms[2]=i;
+							}
+							break;
+						default:
+							printf("Invalid alarm selection\n");
+							break;
+					}
+					printf("Press 1 to change alarms further or 2 to continue\n");
+					scanf("%d", &j);
+				}
+				break;
+			//Allows updating of tone number. Actual tone selection done during alarm sequence by reading preference
+			case 2:
+				printf("What alarm tone would you like to use?(1-16)\n");
+				scanf("%d",&j);
+				if(j>16 || j<0)
+				{
+					printf("Invalid alarm tone\n");
+				}
+				else{
+					soloUser.userTone = j;
+				}
+				break;
+			//Allows addition of new hopper to perscription. Not realistic, as it will only be a barcode scan
+			case 3:
+				while(j!=2)
+				{
+					printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
+					scanf("%d", &j);
+					if(j<7 && j>0)
+					{	
+						soloUser.hopperAct[j-1]=true;
+						printf("Pill size in Hopper %d (1-6):\n", j); //For data entry purpose only. Will be provided by Barcode
+						scanf("%d", &soloUser.hopperSize[j-1]);
+						printf("Pills from Hopper %d each serving (1-3):\n", j); //For data entry purpose only. Will be provided by Barcode
+						scanf("%d", &soloUser.hopperNumDisp[j-1]);
+						printf("Alarms at which to recieve pills from Hopper %d (1-7):\n", j); //For data entry purpose only. Will be provided by Barcode
+						scanf("%d", &soloUser.hopperTimes[j-1]);
+						printf("Days of the week to dispense from Hopper %d (XXXXXXX) [0 or 1]:\n", j); //For data entry purpose only. Will be provided by Barcode
+						scanf("%d", &soloUser.hopperDays[j-1]);
+						printf("Would you like to add another Hopper to user: %s? 1 = Yes, 2 = No\n", soloUser.userName); //For data entry purpose only. Will be provided by Barcode
+						scanf("%d", &j);
+					}
+					else{
+						printf("Invalid Hopper\n"); //For data entry purpose only. Will be provided by Barcode
+					}
+				}
+				break;
+			//Password altercation menu. Digit guard not in place yet.
+			case 4:
+				if(soloUser.passAct==false)
+				{
+					printf("Would you like to enable a password? 1 = Yes, 2 = No\n");
+					scanf("%d",&j);
+					if(j==1)
+					{
+						printf("What pin would you like to set? (Up to 5 digits)\n");
+						scanf("%d",&soloUser.userPass);
+					}
+				}
+				else{
+					printf("Would you like to: 1 = Remove your password, 2 = Change your password, 3 = Return?\n");
+					scanf("%d",&j);
+					if(j==1 || j==2)
+					{
+						//REquires current password before changing
+						printf("Enter your current password:\n");
+						scanf("%d",&k);
+						if(k==soloUser.userPass)
+						{
+							if(j==1)
+							{
+								soloUser.passAct=false;
+								soloUser.userPass=0;
+								printf("Password removed\n");
+							}
+							else{
+								printf("Please input your new pin (5 digit max)\n");
+								scanf("%d",&k);
+								soloUser.userPass=k;
+							}
+						}
+						else{
+							printf("Wrong password, returning to menu\n");
+						}
+					}
+				}
+				break;
+			case 5:
+				return(soloUser);
+				break;
+			default:
+				printf("Invalid Menu Selection\n");
+				break;	
+		}
+	}
 }
 //Writes all current configurations to save text file in storage arrangement seen in README
 //Terminates with the system known string
@@ -298,7 +440,7 @@ int systemSettings(user* Users, int numUsers)
 		//Emulates the basic text based menu for the system setting
 		while(menuSelect!=4)
 		{
-			printf("Login Complete\nWhat would you like to do?\n1: Add a User\n2: Remove a User\n3: Erase Settings\n4: Return to Main Menu\n");
+			printf("Login Complete\nWhat would you like to do?\n1: Add a User\n2: Remove a User\n3: Erase Settings\n4: Change system password\n5: Return to Main Menu\n");
 			scanf("%d", &menuSelect);
 			switch(menuSelect){
 				case 1:
@@ -340,7 +482,20 @@ int systemSettings(user* Users, int numUsers)
 						numUsers = load(Users);
 					}
 					break;
+				//System password change
 				case 4:
+					printf("Please input current system password\n");
+					scanf("%d",&i);
+					if(i==systemPassword)
+					{
+						printf("Please enter the new desired pin (Up to 5 digits)\n");
+						scanf("%d",&systemPassword);
+					}
+					else{
+						printf("Invalid password, returning to menu\n");
+					}
+					break;
+				case 5:
 					//Return to main menu and save
 					return(numUsers);
 					break;
@@ -408,6 +563,7 @@ int main()
 				scanf("%d", &menuSelect);
 				printf("Selecting User\n");
 				Users[menuSelect] = userMenu(Users[menuSelect]);
+				save(Users, numUsers);
 				break; 
 			case 2:
 				//System setting completed. Needs thorough testing
