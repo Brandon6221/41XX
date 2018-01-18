@@ -526,14 +526,15 @@ int main()
   	int date;
   	int hr,min,sec,yr;
   	int PID;
-  	bool userChild[5];
-	int userProcessID[5];
+  	bool userChild[5] = {false, false, false, false};
+	int userProcessID[5] = {0, 0, 0, 0, 0};
 	systemPassword=0;
 
 	user * Users = malloc(sizeof(struct userData)*6);
 	for(i=0; i<5; i++);
 	{
 		Users[i]=clearUser(Users[i]);
+		userChild[i]=false;
 	}
 
 	//Calls load function to read users config from save text
@@ -553,7 +554,8 @@ int main()
   		{
   			if(userChild[i] == true)
   			{
-  				kill(userProcessID[i], SIGKILL);
+  				printf("Killing %d\n", i+1);
+  				kill(userProcessID[i], SIGTERM);
   			}
   		}
   		//Creates processes equal to that of users
@@ -602,7 +604,7 @@ int main()
 							//On match print warning to screen and sleep for 60 seconds
 							if((hr*60)+min == Users[i].userAlarms[j])
 							{
-								printf("%s\n", day);
+								//printf("%s\n", day);
 								printf("TAKE YOUR MEDICATION %s!!! Current Time is ",Users[i].userName);
 								if(hr>12)
 								{
@@ -612,15 +614,17 @@ int main()
 									printf("%d:%d\n",hr ,min);
 								}
 								numUsers = load(Users);
-								printf("Hi\n");
-								for(k=0; k<6; k++);
+								//printf("Hi\n");
+								for(k=0; k<6; k++)
 								{
 									//Guarentees active hopper (Broken)
 									if(Users[i].hopperAct[k]==true)
 									{
+										printf("Hopper %d is distributing\n", k+1);
 										//Ensures pill is subscribed from the alarm sounding ()Broken
 										if((j==0 && (Users[i].hopperTimes[k]==1 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==7)) || (j==1 && (Users[i].hopperTimes[k]==2 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)) || (j==2 && (Users[i].hopperTimes[k]==3 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)))
 										{
+											printf("Time of day is %d\n", j);
 											if((Users[i].hopperDays[k]/10/10/10/10/10/10%10==1 && strcmp(day, "Mon")==0) || (Users[i].hopperDays[k]/10/10/10/10/10%10==1 && strcmp(day, "Tue")==0) || (Users[i].hopperDays[k]/10/10/10/10%10==1 && strcmp(day, "Wed")==0) || (Users[i].hopperDays[k]/10/10/10%10==1 && strcmp(day, "Thu")==0) || (Users[i].hopperDays[k]/10/10%10==1 && strcmp(day, "Fri")==0) || (Users[i].hopperDays[k]/10%10==1 && strcmp(day, "Sat")==0) || (Users[i].hopperDays[k]%10==1 && strcmp(day, "Sun")==0))
 											{
 												printf("Hopper %d distributes %d pills\n",k+1, Users[i].hopperNumDisp[k]);
