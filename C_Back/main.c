@@ -5,7 +5,7 @@
 
 int systemPassword;
 typedef enum{ false=0, true=1 } bool;
-
+//Basic data storage for each individual user
 typedef struct userData{
 	bool hopperAct [6]; //Hopper is in use = True, Hopper inactive = False
 	int hopperSize [6]; //6 Size variants of pils for each hopper (1,2,3,4,5,6)
@@ -26,7 +26,8 @@ typedef struct userData{
 	bool passAct; //User may or may not have a password
 	int userPass; //User password to update perscription (Can be Null)
 }user;
-
+//Runs users through the prompts required to initialize a user profile
+//Will eventually be mostly barcode and data storage
 user addUser(user soloUser)
 {
 	int menuSelect;
@@ -133,7 +134,7 @@ user addUser(user soloUser)
 
 	return(soloUser);
 }
-
+//Init a User to Null
 user clearUser(user soloUser)
 {
 	//Initializes a user profile to NULL
@@ -154,7 +155,7 @@ user clearUser(user soloUser)
 	bool passAct = false;
 	return(soloUser);
 }
-
+//Unfinnished
 user userMenu(user soloUser)
 {
 	int menuSelect;
@@ -163,7 +164,8 @@ user userMenu(user soloUser)
 	strcpy(soloUser.userName,"delete");
 	return (soloUser);
 }
-
+//Writes all current configurations to save text file in storage arrangement seen in README
+//Terminates with the system known string
 void save(user* Users, int numUsers)
 {
 	int i,j;
@@ -225,7 +227,8 @@ void save(user* Users, int numUsers)
 	fprintf(filePtr,"1234567890\n");
 	fclose(filePtr);
 }
-
+//Reads from the save file to load prefernces from a shutdown. Requires a password on first line of save file and the terminator string on the second to function
+//Terminating string is 1234567890
 int load(user *Users)
 {
 	char temp[50];
@@ -264,7 +267,7 @@ int load(user *Users)
 		sscanf(temp, "%d %d %d", &Users[i].userAlarms[0], &Users[i].userAlarms[1], &Users[i].userAlarms[2]);
 		fgets(temp, 50, filePtr);
 		sscanf(temp, "%d", &j);
-		if(j=1)
+		if(j==1)
 		{
 			Users[i].passAct = true;
 		}
@@ -277,7 +280,7 @@ int load(user *Users)
 	}
 	return(i);
 }
-
+//The system setting menu of the GUI
 int systemSettings(user* Users, int numUsers)
 {
 	int i;
@@ -285,36 +288,48 @@ int systemSettings(user* Users, int numUsers)
 	FILE * filePtr;
 	printf("Please input system password to conitune\n");
 	scanf("%d",&i);
+	//Return to main menu on bad password
 	if(i!=systemPassword)
 	{
 		printf("Invalid password, returning to Main Menu\n");
 		return(numUsers);
 	}
 	else{
+		//Emulates the basic text based menu for the system setting
 		while(menuSelect!=4)
 		{
 			printf("Login Complete\nWhat would you like to do?\n1: Add a User\n2: Remove a User\n3: Erase Settings\n4: Return to Main Menu\n");
 			scanf("%d", &menuSelect);
 			switch(menuSelect){
 				case 1:
-					Users[numUsers] = clearUser(Users[numUsers]);
-					Users[numUsers] = addUser(Users[numUsers]);
-					numUsers++;
-					save(Users, numUsers);
+					//Max user check for adding users. 5 Max
+					if(numUsers==5)
+					{
+						printf("Max users reached\n");
+					}
+					else{
+						Users[numUsers] = clearUser(Users[numUsers]);
+						Users[numUsers] = addUser(Users[numUsers]);
+						numUsers++;
+						save(Users, numUsers);
+					}
 					break;
 				case 2:
+					//Delete a user. has a check for no users left
 					printf("Which user would you like to delete?\n");
 					scanf("%d",&i);
-						if(i>=numUsers)
-						{
-							printf("Invalid User\n");
-						}
-						else{
-							strcpy(Users[i].userName,"delete");
-							save(Users, numUsers);
-						}
+
+					if(i>=numUsers || numUsers == 0)
+					{
+						printf("Invalid User or no users to delete\n");
+					}
+					else{
+						strcpy(Users[i].userName,"delete");
+						save(Users, numUsers);
+					}
 					break;
 				case 3:
+					//Prompts to ensure before deleting save file and restoring with basic neede contents
 					printf("Are you sure you would like to clear all user customizations? 1 = Yes, 2 = No\n");
 					scanf("%d",&i);
 					if(i==1)
@@ -326,6 +341,7 @@ int systemSettings(user* Users, int numUsers)
 					}
 					break;
 				case 4:
+					//Return to main menu and save
 					return(numUsers);
 					break;
 				default:
@@ -336,7 +352,6 @@ int systemSettings(user* Users, int numUsers)
 		}
 
 	}
-
 }
 
 int main()
@@ -353,15 +368,19 @@ int main()
 		Users[i]=clearUser(Users[i]);
 	}
 
+	//Calls load function to read users config from save text
 	numUsers = load(Users);
 
+	//Ensures a password is set for global system
 	if(systemPassword==0)
 	{
 		printf("Please choose a global system Password\n");
 		scanf("%d", &systemPassword);
 	}
+	//Functioning loop of the process
 	while(1)
 	{
+		//First lists current users
 		printf("\nUsers:\n\n");
 		if(numUsers==0)
 		{
@@ -378,22 +397,26 @@ int main()
 				}
 			}
 		}
+		//Presents Main menu options
 		printf("\nWhat would you like to do?\n1: Select User Menu (followed by user #)\n2: System Settings\n3: Save & Exit\n\n");
 
 		scanf("%d", &menuSelect);
 
 		switch(menuSelect){
 			case 1:
+				//userMenu unfinnished
 				scanf("%d", &menuSelect);
 				printf("Selecting User\n");
 				Users[menuSelect] = userMenu(Users[menuSelect]);
 				break; 
 			case 2:
+				//System setting completed. Needs thorough testing
 				printf("Accessing Settings\n");
 				numUsers = systemSettings(Users, numUsers);
 				save(Users, numUsers);
 				break; 
 			case 3:
+				//Saves and closes. Most eligent and simple menu function 
 				printf("Exiting\n");
 				save(Users, numUsers);
 				exit(0);
@@ -402,7 +425,7 @@ int main()
 				printf("Invalid Input\n");
 				break; 
 		}
-		//Clean up Users Array incase of deletion previous loop
+		//Clean up Users Array incase of deletion previous loop (ie User1, User2, "deleted user", User4 -> User1, User2, User3)
 		for(i=0;i<numUsers;i++)
 		{
 			if(strcmp(Users[i].userName,"delete")==0)
