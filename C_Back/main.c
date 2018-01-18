@@ -30,13 +30,27 @@ typedef struct userData{
 	int userPass; //User password to update perscription (Can be Null)
 
 }user;
+//Digit length function
+int lenHelper(int x) 
+{
+    if(x>=1000000000) return 10;
+    if(x>=100000000) return 9;
+    if(x>=10000000) return 8;
+    if(x>=1000000) return 7;
+    if(x>=100000) return 6;
+    if(x>=10000) return 5;
+    if(x>=1000) return 4;
+    if(x>=100) return 3;
+    if(x>=10) return 2;
+    return 1;
+}
 //Runs users through the prompts required to initialize a user profile
 //Will eventually be mostly barcode and data storage
 user addUser(user soloUser)
 {
 	int menuSelect;
 	int activate;
-	int i;
+	int i,j;
 	printf("Enter name for user\n"); 
 	scanf("%s", soloUser.userName); //Enter user name using touch interface to scroll though letters and continue options
 	if(strlen(soloUser.userName)<1)
@@ -44,6 +58,14 @@ user addUser(user soloUser)
 		strcpy(soloUser.userName,"delete"); //Null name marked for auto remove
 	}
 	//This loop will be a prompt to scan a barcode. Process data and store. Still needs error checking for in range numbers
+	/*
+	Start barcode scan process after user name confirmed
+	Barcode actively watches unit a barcode is returned or timeout occurs on scan (30 seconds)
+	On timeout return to System Menu
+	If proper barcode, check date verification code
+	if proper, accept barcode and place data in the users struct
+	If improper print barcode error and return to system menu
+	*/
 	while(menuSelect!=2)
 	{
 		printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
@@ -126,13 +148,24 @@ user addUser(user soloUser)
 	}
 	//Apply a 1-5 digit integer code to account
 	//Impliment using touch scroll interface but with integers and a confirm option
-	printf("Would you like to password protect you account? 1 = Yes, 2 = No\n");
-	scanf("%d", &activate);
-	if(activate==1)
-	{
-		printf("Please insert desired Password (5 digit max)\n");
-		scanf("%d", &soloUser.userPass);
-		soloUser.passAct=true;
+	printf("Would you like to enable a password? 1 = Yes, 2 = No\n");
+	scanf("%d",&j);
+	if(j==1)
+	{	
+		soloUser.userPass=0;
+		while(lenHelper(soloUser.userPass)<3 || lenHelper(soloUser.userPass)>5)
+		{
+			printf("What pin would you like to set? (Up to 5 digits)\n");
+			scanf("%d",&soloUser.userPass);
+			if(lenHelper(soloUser.userPass)<3)
+			{
+				printf("Passwords of shorter than 3 digit length are not accepted.\n");
+			}
+			else if(lenHelper(systemPassword)>5)
+			{
+				printf("Passwords greters than 5 digit length are not accepted.\n");
+			}
+		}
 	}
 	printf("New User: %s Added Successfully!\n", soloUser.userName);
 
@@ -168,7 +201,7 @@ user userMenu(user soloUser)
 	{	
 		k=0;
 		j=1;
-		printf("What would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n5: Return to Main Menu\n");
+		printf("Hello %s\nWhat would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n5: Return to Main Menu\n", soloUser.userName);
 		scanf("%d", &menuSelect);
 		switch(menuSelect){
 			//Leads to display allowing selection of which time to update
@@ -240,6 +273,7 @@ user userMenu(user soloUser)
 			case 3:
 				while(j!=2)
 				{
+					//Will likely call the barcode function used after name input at new user menu
 					printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
 					scanf("%d", &j);
 					if(j<7 && j>0)
@@ -269,8 +303,20 @@ user userMenu(user soloUser)
 					scanf("%d",&j);
 					if(j==1)
 					{
-						printf("What pin would you like to set? (Up to 5 digits)\n");
-						scanf("%d",&soloUser.userPass);
+						//New password, so can assum will enter loop
+						while(lenHelper(soloUser.userPass)<3 || lenHelper(soloUser.userPass)>5)
+						{
+							printf("What pin would you like to set? (Up to 5 digits)\n");
+							scanf("%d",&soloUser.userPass);
+							if(lenHelper(soloUser.userPass)<3)
+							{
+								printf("Passwords of shorter than 3 digit length are not accepted.\n");
+							}
+							else if(lenHelper(systemPassword)>5)
+							{
+								printf("Passwords greters than 5 digit length are not accepted.\n");
+							}
+						}
 					}
 				}
 				else{
@@ -290,9 +336,24 @@ user userMenu(user soloUser)
 								printf("Password removed\n");
 							}
 							else{
-								printf("Please input your new pin (5 digit max)\n");
-								scanf("%d",&k);
-								soloUser.userPass=k;
+								//Slightly different than other password updates as it saves original incase of exiting	
+								k=0;
+								while(lenHelper(k)<3 || lenHelper(k)>5)
+								{
+									printf("What pin would you like to set? (Up to 5 digits)\n");
+									scanf("%d",&k);
+									if(lenHelper(k)<3)
+									{
+										printf("Passwords of shorter than 3 digit length are not accepted.\n");
+									}
+									else if(lenHelper(k)>5)
+									{
+										printf("Passwords greters than 5 digit length are not accepted.\n");
+									}
+									else{
+										soloUser.userPass=k;
+									}
+								}
 							}
 						}
 						else{
@@ -429,9 +490,10 @@ int load(user *Users)
 //The system setting menu of the GUI
 int systemSettings(user* Users, int numUsers)
 {
-	int i;
+	int i,k;
 	int menuSelect = 0;
 	FILE * filePtr;
+	printf("%d\n", numUsers);
 	printf("Please input system password to conitune\n");
 	scanf("%d",&i);
 	//Return to main menu on bad password
@@ -442,7 +504,7 @@ int systemSettings(user* Users, int numUsers)
 	}
 	else{
 		//Emulates the basic text based menu for the system setting
-		while(menuSelect!=4)
+		while(menuSelect!=5)
 		{
 			printf("Login Complete\nWhat would you like to do?\n1: Add a User\n2: Remove a User\n3: Erase Settings\n4: Change system password\n5: Return to Main Menu\n");
 			scanf("%d", &menuSelect);
@@ -492,12 +554,28 @@ int systemSettings(user* Users, int numUsers)
 					scanf("%d",&i);
 					if(i==systemPassword)
 					{
-						printf("Please enter the new desired pin (Up to 5 digits)\n");
-						scanf("%d",&systemPassword);
+						k=0;
+						while(lenHelper(k)<3 || lenHelper(k)>5)
+						{
+							printf("What pin would you like to set? (Up to 5 digits)\n");
+							scanf("%d",&k);
+							if(lenHelper(k)<3)
+							{
+								printf("Passwords of shorter than 3 digit length are not accepted.\n");
+							}
+							else if(lenHelper(k)>5)
+							{
+								printf("Passwords greters than 5 digit length are not accepted.\n");
+							}
+							else{
+								systemPassword=k;
+							}
+						}
 					}
 					else{
 						printf("Invalid password, returning to menu\n");
 					}
+					printf("%d\n", numUsers);
 					break;
 				case 5:
 					//Return to main menu and save
@@ -511,6 +589,84 @@ int systemSettings(user* Users, int numUsers)
 		}
 
 	}
+}
+
+void watcherPID(int PID, int i, bool *userChild, int *userProcessID, user *Users, int numUsers)
+{
+	char temp[100];
+	time_t rawtime;
+  	struct tm * timeinfo;
+  	char day[10];
+  	char month[10];
+  	int date;
+  	int hr,min,sec,yr;
+  	int j,k;
+	if(PID==0)
+	{
+		//i--;
+		//Mark all userChild processes as false except one this PID is servicing
+		for(j=i-1;j>-1;j--)
+		{
+			userChild[j] = false;
+		}
+		for(j=i+1;j<5;j++)
+		{
+			userChild[j] = false;
+		}
+		//Locate process index and begin sleep/watch cycle
+		for(i=0;i<5;i++)
+		{
+			if(userChild[i]==true)
+			{
+				//Process Loop
+				while(1)
+				{
+					usleep(10000000);	//Awake every 10 seconds to check for Medication time
+			  		time(&rawtime);
+					timeinfo = localtime(&rawtime);
+					strcpy(temp,asctime(timeinfo));
+					sscanf(temp, "%s %s %d %d:%d:%d %d", day, month, &date, &hr, &min, &sec, &yr);
+					//Compares current time against alarm times
+					for(j=0;j<3;j++)
+					{
+						//On match print warning to screen and sleep for 60 seconds
+						if((hr*60)+min == Users[i].userAlarms[j])
+						{
+							//printf("%s\n", day);
+							printf("TAKE YOUR MEDICATION %s!!! Current Time is ",Users[i].userName);
+							if(hr>12)
+							{
+								printf("%d:%d\n", hr-12, min);
+							}
+							else{
+								printf("%d:%d\n",hr ,min);
+							}
+							numUsers = load(Users);
+							//printf("Hi\n");
+							for(k=0; k<6; k++)
+							{
+								//Guarentees active hopper (Broken)
+								if(Users[i].hopperAct[k]==true)
+								{
+									//Ensures pill is subscribed from the alarm sounding ()Broken
+									if((j==0 && (Users[i].hopperTimes[k]==1 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==7)) || (j==1 && (Users[i].hopperTimes[k]==2 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)) || (j==2 && (Users[i].hopperTimes[k]==3 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)))
+									{
+										if((Users[i].hopperDays[k]/10/10/10/10/10/10%10==1 && strcmp(day, "Mon")==0) || (Users[i].hopperDays[k]/10/10/10/10/10%10==1 && strcmp(day, "Tue")==0) || (Users[i].hopperDays[k]/10/10/10/10%10==1 && strcmp(day, "Wed")==0) || (Users[i].hopperDays[k]/10/10/10%10==1 && strcmp(day, "Thu")==0) || (Users[i].hopperDays[k]/10/10%10==1 && strcmp(day, "Fri")==0) || (Users[i].hopperDays[k]/10%10==1 && strcmp(day, "Sat")==0) || (Users[i].hopperDays[k]%10==1 && strcmp(day, "Sun")==0))
+										{
+											printf("Hopper %d distributes %d pills\n",k+1, Users[i].hopperNumDisp[k]);
+											//Distribute (hopperNumDisp[k]) pills from hopper (k), of size variation (hopperSize[k]). These pills distribute at alarms set in (hopperTimes[k]) of the day, on days (hopperDays[k]) of the week
+										}
+									}
+								}	
+							}
+							usleep(60000000);
+						}
+					}
+				}
+			}
+		}
+	}
+	return;
 }
 
 int main()
@@ -541,10 +697,18 @@ int main()
 	numUsers = load(Users);
 
 	//Ensures a password is set for global system
-	if(systemPassword==0)
+	while(lenHelper(systemPassword)<3 || lenHelper(systemPassword)>5)
 	{
 		printf("Please choose a global system Password\n");
 		scanf("%d", &systemPassword);
+		if(lenHelper(systemPassword)<3)
+		{
+			printf("Passwords of shorter than 3 digit length are not accepted.\n");
+		}
+		else if(lenHelper(systemPassword)>5)
+		{
+			printf("Passwords greters than 5 digit length are not accepted.\n");
+		}
 	}
 	//Functioning loop of the process
 	while(1)
@@ -572,73 +736,12 @@ int main()
   				break;	
   			}
   		}
-  		//Alarm watching functions for user processes
+  		//Child Process 
   		if(PID==0)
   		{
-  			i--;
-  			//Mark all userChild processes as false except one this PID is servicing
-  			for(j=i-1;j>-1;j--)
-  			{
-  				userChild[j] = false;
-  			}
-  			for(j=i+1;j<5;j++)
-  			{
-  				userChild[j] = false;
-  			}
-  			//Locate process index and begin sleep/watch cycle
-  			for(i=0;i<5;i++)
-  			{
-  				if(userChild[i]==true)
-  				{
-  					//Process Loop
-  					while(1)
-  					{
-  						usleep(10000000);	//Awake every 10 seconds to check for Medication time
-				  		time(&rawtime);
-						timeinfo = localtime(&rawtime);
-						strcpy(temp,asctime(timeinfo));
-						sscanf(temp, "%s %s %d %d:%d:%d %d", day, month, &date, &hr, &min, &sec, &yr);
-						//Compares current time against alarm times
-						for(j=0;j<3;j++)
-						{
-							//On match print warning to screen and sleep for 60 seconds
-							if((hr*60)+min == Users[i].userAlarms[j])
-							{
-								//printf("%s\n", day);
-								printf("TAKE YOUR MEDICATION %s!!! Current Time is ",Users[i].userName);
-								if(hr>12)
-								{
-									printf("%d:%d\n", hr-12, min);
-								}
-								else{
-									printf("%d:%d\n",hr ,min);
-								}
-								numUsers = load(Users);
-								//printf("Hi\n");
-								for(k=0; k<6; k++)
-								{
-									//Guarentees active hopper (Broken)
-									if(Users[i].hopperAct[k]==true)
-									{
-										printf("Hopper %d is distributing\n", k+1);
-										//Ensures pill is subscribed from the alarm sounding ()Broken
-										if((j==0 && (Users[i].hopperTimes[k]==1 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==7)) || (j==1 && (Users[i].hopperTimes[k]==2 || Users[i].hopperTimes[k]==4 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)) || (j==2 && (Users[i].hopperTimes[k]==3 || Users[i].hopperTimes[k]==5 || Users[i].hopperTimes[k]==6 || Users[i].hopperTimes[k]==7)))
-										{
-											printf("Time of day is %d\n", j);
-											if((Users[i].hopperDays[k]/10/10/10/10/10/10%10==1 && strcmp(day, "Mon")==0) || (Users[i].hopperDays[k]/10/10/10/10/10%10==1 && strcmp(day, "Tue")==0) || (Users[i].hopperDays[k]/10/10/10/10%10==1 && strcmp(day, "Wed")==0) || (Users[i].hopperDays[k]/10/10/10%10==1 && strcmp(day, "Thu")==0) || (Users[i].hopperDays[k]/10/10%10==1 && strcmp(day, "Fri")==0) || (Users[i].hopperDays[k]/10%10==1 && strcmp(day, "Sat")==0) || (Users[i].hopperDays[k]%10==1 && strcmp(day, "Sun")==0))
-											{
-												printf("Hopper %d distributes %d pills\n",k+1, Users[i].hopperNumDisp[k]);
-											}
-										}
-									}	
-								}
-								usleep(60000000);
-							}
-						}
-  					}
-  				}
-  			}
+  			watcherPID(PID, i-1, userChild, userProcessID, Users, numUsers);
   		}
+  		//Wipe PID init for deleted processes
   		for(i=numUsers; i<5;i++)
   		{
   			userChild[i] = false;
@@ -653,13 +756,6 @@ int main()
 		for(i=0; i<numUsers; i++)
 		{
 			printf("\nUser %d:\nName: %s\n\n", i+1, Users[i].userName);
-			for(j=0;j<6;j++)
-			{
-				if(Users[i].hopperAct[j] == true)
-				{
-					printf("Hopper %d in use\n", j+1);
-				}
-			}
 		}
 		//Presents Main menu options
 		printf("\nWhat would you like to do?\n1: Select User Menu (followed by user #)\n2: System Settings\n3: Save & Exit\n\n");
@@ -671,7 +767,7 @@ int main()
 				//userMenu unfinnished
 				scanf("%d", &menuSelect);
 				printf("Selecting User\n");
-				Users[menuSelect] = userMenu(Users[menuSelect]);
+				Users[menuSelect-1] = userMenu(Users[menuSelect-1]);
 				save(Users, numUsers);
 				break; 
 			case 2:
@@ -684,6 +780,15 @@ int main()
 				//Saves and closes. Most eligent and simple menu function 
 				printf("Exiting\n");
 				save(Users, numUsers);
+				//Cleans up process' on exit
+				for(i=0;i<5;i++)
+		  		{
+		  			if(userChild[i] == true)
+		  			{
+		  				printf("Killing %d\n", i+1);
+		  				kill(userProcessID[i], SIGTERM);
+		  			}
+		  		}
 				exit(0);
 				break; 
 			default:
