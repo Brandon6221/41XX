@@ -28,29 +28,35 @@ typedef struct userData{
 	bool alarmsAct[3];
 	bool passAct; //User may or may not have a password
 	int userPass; //User password to update perscription (Can be Null)
-
 }user;
-//Digit length function
-int lenHelper(int x) 
-{
-    if(x>=1000000000) return 10;
-    if(x>=100000000) return 9;
-    if(x>=10000000) return 8;
-    if(x>=1000000) return 7;
-    if(x>=100000) return 6;
-    if(x>=10000) return 5;
-    if(x>=1000) return 4;
-    if(x>=100) return 3;
-    if(x>=10) return 2;
-    return 1;
-}
+
+typedef struct processInfo{
+	bool userChild[5];
+	int userProcessID[5];
+	int numProcess;
+}procInfo;
+
+user addUser(user soloUser);
+user changeAlarm(user soloUser);
+user clearUser(user soloUser);
+int lenHelper(int x);
+int load(user *Users);
+int passBounds();
+void save(user* Users, int numUsers);
+int systemSettings(user* Users, int numUsers);
+user userMenu(user soloUser);
+void watcherPID(int PID, int i, procInfo processInfo, user *Users);
+
 //Runs users through the prompts required to initialize a user profile
 //Will eventually be mostly barcode and data storage
 user addUser(user soloUser)
 {
 	int menuSelect;
 	int activate;
-	int i,j;
+	int i,j,k;
+	char temp[200];
+	char path[200];
+	FILE* fp;
 	printf("Enter name for user\n"); 
 	scanf("%s", soloUser.userName); //Enter user name using touch interface to scroll though letters and continue options
 	if(strlen(soloUser.userName)<1)
@@ -66,7 +72,7 @@ user addUser(user soloUser)
 	if proper, accept barcode and place data in the users struct
 	If improper print barcode error and return to system menu
 	*/
-	while(menuSelect!=2)
+	/*while(menuSelect!=2)
 	{
 		printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
 		scanf("%d", &activate);
@@ -75,18 +81,97 @@ user addUser(user soloUser)
 			soloUser.hopperAct[activate-1]=true;
 			printf("Pill size in Hopper %d (1-6):\n", activate); //For data entry purpose only. Will be provided by Barcode
 			scanf("%d", &soloUser.hopperSize[activate-1]);
+			//These all need input error checking but will be on barcode. To impliment later
 			printf("Pills from Hopper %d each serving (1-3):\n", activate); //For data entry purpose only. Will be provided by Barcode
 			scanf("%d", &soloUser.hopperNumDisp[activate-1]);
+			//These all need input error checking but will be on barcode. To impliment later
 			printf("Alarms at which to recieve pills from Hopper %d (1-7):\n", activate); //For data entry purpose only. Will be provided by Barcode
 			scanf("%d", &soloUser.hopperTimes[activate-1]);
+			//These all need input error checking but will be on barcode. To impliment later
 			printf("Days of the week to dispense from Hopper %d (XXXXXXX) [0 or 1]:\n", activate); //For data entry purpose only. Will be provided by Barcode
 			scanf("%d", &soloUser.hopperDays[activate-1]);
+			//These all need input error checking but will be on barcode. To impliment later
 			printf("Would you like to add another Hopper to user: %s? 1 = Yes, 2 = No\n", soloUser.userName); //For data entry purpose only. Will be provided by Barcode
 			scanf("%d", &menuSelect);
+			//These all need input error checking but will be on barcode. To impliment later
 		}
 		else{
 			printf("Invalid Hopper\n"); //For data entry purpose only. Will be provided by Barcode
 		}
+	}*/
+	i=0;
+	j=0;
+	while(i!=1)
+	{
+		system("raspistill -o image.jpg");
+		i=0;
+		
+		//usleep(2000000);
+		fp = popen("zbarimg image.jpg", "r");
+		if (fp == NULL)
+		{
+			printf("Crash\n");
+			strcpy(soloUser.userName,"delete");
+			return(soloUser);
+		}
+		//usleep(4000000);
+		if(fgets(path, 200, fp)==NULL)
+		{
+			strcpy(path,"null");
+		}
+		else{
+			path[strlen(path)-1]='\0';		
+		}
+		//printf("!!!%s!!!\n", path);
+		if(j==4)
+		{
+			printf("Invalid barcode. Too many invalid scans. Returning to previous menu\n");
+			break;
+		}
+		else if (path[0]=='Q')
+		{	
+			printf("Successful barcode scan\n");
+			i=1;
+		}
+		else if(path[0]=='n')
+		{
+			printf("Invalid barcode. Rescanning");
+			i=0;
+			j++;
+		}
+	pclose(fp);
+	//printf("!!!%s!!!\n", path);
+	//usleep(2000000);
+	}
+	//system("zbarimg image.jpg");
+	if(i==1)
+	{
+		printf("%s\n",path);
+		for(j=0; j<6; j++)
+		{
+			if(path[8+j]=='1')
+			{
+				soloUser.hopperAct[j]=true;
+			}
+			else
+			{
+				soloUser.hopperAct[j]=false;
+			}
+			soloUser.hopperSize[j] = path[14+j] - '0';	
+			soloUser.hopperNumDisp[j] = path[20+j] - '0';
+			soloUser.hopperTimes[j] = path[26+j] - '0';
+		}
+		printf("Hi\n");
+		for(j=0;j<7;j++)
+		{
+			strncpy(temp, &path[32+(7*j)],7);
+			soloUser.hopperDays[j]=atoi(temp);
+		}
+		printf("Hi\n");
+	}
+	else{
+		strcpy(soloUser.userName,"delete");
+		return(soloUser);
 	}
 	printf("Would you like to change preset alarm times?(8AM, 2PM, 8PM) 1 = Yes, 2 = No\n"); //Change preset Alarms on account creation
 	scanf("%d", &activate);
@@ -95,56 +180,7 @@ user addUser(user soloUser)
 	//Boolean logic ensures alarms stay in respective timing zones and also ensures minimum 2 hour buffer between alarms
 	if(activate == 1)
 	{
-		while(activate == 1)
-		{	
-			//Will be a display window with 3 options to scroll between
-			printf("Current Alarms: %d:%d, %d:%d, %d:%d\n",soloUser.userAlarms[0]/60,soloUser.userAlarms[0]%60,soloUser.userAlarms[1]/60,soloUser.userAlarms[1]%60,soloUser.userAlarms[2]/60,soloUser.userAlarms[2]%60);
-			printf("Which alarm to change? 1 = Morning, 2 = MidDay, 3 = Evening\n");
-			scanf("%d", &activate);
-			switch(activate){
-				case 1:
-					//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-					printf("Set Morning alarm to when? (Minutes and military) (After 4:00AM . 12PM)\n");
-					scanf("%d", &i);
-					if(i>1440 || i<480 || i>720 || i>soloUser.userAlarms[1]-120 || (i<soloUser.userAlarms[2]+120 && soloUser.userAlarms[2]>=0 && soloUser.userAlarms[2]<480))
-					{
-						printf("Invalid Morning alarm (Before 2AM or after 12PM)\n");
-					}
-					else{
-						soloUser.userAlarms[0]=i;
-					}
-					break;
-				case 2:
-					//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-					printf("Set MidDay alarm to when? (Minutes and military) (After 12:00AM . 6PM)\n");
-					scanf("%d", &i);
-					if(i>1440|| i<720 || i>1080 || (i>soloUser.userAlarms[2]-120 && soloUser.userAlarms[2]>480) || soloUser.userAlarms[0]+120>i)
-					{
-						printf("Invalid MidDay alarm (Before 12PM or after 6PM)\n");
-					}
-					else{
-						soloUser.userAlarms[1]=i;
-					}
-					break;
-				case 3:
-					//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-					printf("Set Evening alarm to when? (Minutes and military) (After 6PM . 4AM)\n");
-					scanf("%d", &i);
-					if(i>1440 || (i<1080 && i>480) || i<0 || (i>soloUser.userAlarms[0]-120 && i<480) || (i<soloUser.userAlarms[1]+120 && i>1080))
-					{
-						printf("Invalid Evening alarm (Before 6PM or after 4AM)\n");
-					}
-					else{
-						soloUser.userAlarms[2]=i;
-					}
-					break;
-				default:
-					printf("Invalid alarm selection\n");
-					break;
-			}
-			printf("Press 1 to change alarms further or 2 to continue\n");
-			scanf("%d", &activate);
-		}
+		soloUser=changeAlarm(soloUser);
 	}
 	//Apply a 1-5 digit integer code to account
 	//Impliment using touch scroll interface but with integers and a confirm option
@@ -152,23 +188,76 @@ user addUser(user soloUser)
 	scanf("%d",&j);
 	if(j==1)
 	{	
-		soloUser.userPass=0;
-		while(lenHelper(soloUser.userPass)<3 || lenHelper(soloUser.userPass)>5)
+		k = passBounds();
+		if(k!=0)
 		{
-			printf("What pin would you like to set? (Up to 5 digits)\n");
-			scanf("%d",&soloUser.userPass);
-			if(lenHelper(soloUser.userPass)<3)
-			{
-				printf("Passwords of shorter than 3 digit length are not accepted.\n");
-			}
-			else if(lenHelper(systemPassword)>5)
-			{
-				printf("Passwords greters than 5 digit length are not accepted.\n");
-			}
+			soloUser.passAct = true;
+			soloUser.userPass = k;
+		}
+		else{
+			printf("Unsuccessful password add\n");
 		}
 	}
 	printf("New User: %s Added Successfully!\n", soloUser.userName);
 
+	return(soloUser);
+}
+//Update functions to change user alarm
+user changeAlarm(user soloUser)
+{
+	int leave=1;
+	int menu;
+	int i;
+	while(leave == 1)
+	{	
+		//Will be a display window with 3 options to scroll between
+		printf("Current Alarms: %d:%d, %d:%d, %d:%d\n",soloUser.userAlarms[0]/60,soloUser.userAlarms[0]%60,soloUser.userAlarms[1]/60,soloUser.userAlarms[1]%60,soloUser.userAlarms[2]/60,soloUser.userAlarms[2]%60);
+		printf("Which alarm to change? 1 = Morning, 2 = MidDay, 3 = Evening\n");
+		scanf("%d", &menu);
+		switch(menu){
+			case 1:
+				//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+				printf("Set Morning alarm to when? (Minutes and military) (After 4:00AM . 12PM)\n");
+				scanf("%d", &i);
+				if(i>1440 || i<480 || i>720 || i>soloUser.userAlarms[1]-120 || (i<soloUser.userAlarms[2]+120 && soloUser.userAlarms[2]>=0 && soloUser.userAlarms[2]<480))
+				{
+					printf("Invalid Morning alarm (Before 4AM or after 12PM)\n");
+				}
+				else{
+					soloUser.userAlarms[0]=i;
+				}
+				break;
+			case 2:
+				//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+				printf("Set MidDay alarm to when? (Minutes and military) (After 12:00AM . 6PM)\n");
+				scanf("%d", &i);
+				if(i>1440|| i<720 || i>1080 || (i>soloUser.userAlarms[2]-120 && soloUser.userAlarms[2]>480) || soloUser.userAlarms[0]+120>i)
+				{
+					printf("Invalid MidDay alarm (Before 12PM or after 6PM)\n");
+				}
+				else{
+					soloUser.userAlarms[1]=i;
+				}
+				break;
+			case 3:
+				//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
+				printf("Set Evening alarm to when? (Minutes and military) (After 6PM . 4AM)\n");
+				scanf("%d", &i);
+				if(i>1440 || (i<1080 && i>480) || i<0 || (i>soloUser.userAlarms[0]-120 && i<480) || (i<soloUser.userAlarms[1]+120 && i>1080))
+				{
+					printf("Invalid Evening alarm (Before 6PM or after 4AM)\n");
+				}
+				else{
+					soloUser.userAlarms[2]=i;
+				}
+				break;
+			default:
+				printf("Invalid alarm selection\n");
+				break;
+		}
+		printf("Press 1 to change alarms further or 2 to continue\n");
+		scanf("%d", &leave);
+	}
 	return(soloUser);
 }
 //Init a User to Null
@@ -192,184 +281,114 @@ user clearUser(user soloUser)
 	bool passAct = false;
 	return(soloUser);
 }
-//Allows acces to Perscription changes, alarm tone and time changes, and password setting
-user userMenu(user soloUser)
+//Launches PID to watch for user alarms
+int launchWatcherPID(procInfo *processInfo)
 {
-	int menuSelect, i,j,k;
-	//User Menu process loop
-	while(1)
-	{	
-		k=0;
-		j=1;
-		printf("Hello %s\nWhat would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n5: Return to Main Menu\n", soloUser.userName);
-		scanf("%d", &menuSelect);
-		switch(menuSelect){
-			//Leads to display allowing selection of which time to update
-			case 1:
-				while(j == 1)
-				{	
-					//Will be a display window with 3 options to scroll between
-					printf("Current Alarms: %d:%d, %d:%d, %d:%d\n",soloUser.userAlarms[0]/60,soloUser.userAlarms[0]%60,soloUser.userAlarms[1]/60,soloUser.userAlarms[1]%60,soloUser.userAlarms[2]/60,soloUser.userAlarms[2]%60);
-					printf("Which alarm to change? 1 = Morning, 2 = MidDay, 3 = Evening\n");
-					scanf("%d", &j);
-					switch(j){
-						case 1:
-							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-							printf("Set Morning alarm to when? (Minutes and military) (After 4:00AM . 12PM)\n");
-							scanf("%d", &i);
-							if(i>1440 || i<480 || i>720 || i>soloUser.userAlarms[1]-120 || (i<soloUser.userAlarms[2]+120 && soloUser.userAlarms[2]>=0 && soloUser.userAlarms[2]<480))
-							{
-								printf("Invalid Morning alarm (Before 2AM or after 12PM)\n");
-							}
-							else{
-								soloUser.userAlarms[0]=i;
-							}
-							break;
-						case 2:
-							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-							printf("Set MidDay alarm to when? (Minutes and military) (After 12:00AM . 6PM)\n");
-							scanf("%d", &i);
-							if(i>1440|| i<720 || i>1080 || (i>soloUser.userAlarms[2]-120 && soloUser.userAlarms[2]>480) || soloUser.userAlarms[0]+120>i)
-							{
-								printf("Invalid MidDay alarm (Before 12PM or after 6PM)\n");
-							}
-							else{
-								soloUser.userAlarms[1]=i;
-							}
-							break;
-						case 3:
-							//Logic is good, needs to scroll between changing hour and minutes. Possibly lock scroll at max and min point?
-							printf("Set Evening alarm to when? (Minutes and military) (After 6PM . 4AM)\n");
-							scanf("%d", &i);
-							if(i>1440 || (i<1080 && i>480) || i<0 || (i>soloUser.userAlarms[0]-120 && i<480) || (i<soloUser.userAlarms[1]+120 && i>1080))
-							{
-								printf("Invalid Evening alarm (Before 6PM or after 4AM)\n");
-							}
-							else{
-								soloUser.userAlarms[2]=i;
-							}
-							break;
-						default:
-							printf("Invalid alarm selection\n");
-							break;
-					}
-					printf("Press 1 to change alarms further or 2 to continue\n");
-					scanf("%d", &j);
-				}
-				break;
-			//Allows updating of tone number. Actual tone selection done during alarm sequence by reading preference
-			case 2:
-				printf("What alarm tone would you like to use?(1-16)\n");
-				scanf("%d",&j);
-				if(j>16 || j<0)
-				{
-					printf("Invalid alarm tone\n");
-				}
-				else{
-					soloUser.userTone = j;
-				}
-				break;
-			//Allows addition of new hopper to perscription. Not realistic, as it will only be a barcode scan
-			case 3:
-				while(j!=2)
-				{
-					//Will likely call the barcode function used after name input at new user menu
-					printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
-					scanf("%d", &j);
-					if(j<7 && j>0)
-					{	
-						soloUser.hopperAct[j-1]=true;
-						printf("Pill size in Hopper %d (1-6):\n", j); //For data entry purpose only. Will be provided by Barcode
-						scanf("%d", &soloUser.hopperSize[j-1]);
-						printf("Pills from Hopper %d each serving (1-3):\n", j); //For data entry purpose only. Will be provided by Barcode
-						scanf("%d", &soloUser.hopperNumDisp[j-1]);
-						printf("Alarms at which to recieve pills from Hopper %d (1-7):\n", j); //For data entry purpose only. Will be provided by Barcode
-						scanf("%d", &soloUser.hopperTimes[j-1]);
-						printf("Days of the week to dispense from Hopper %d (XXXXXXX) [0 or 1]:\n", j); //For data entry purpose only. Will be provided by Barcode
-						scanf("%d", &soloUser.hopperDays[j-1]);
-						printf("Would you like to add another Hopper to user: %s? 1 = Yes, 2 = No\n", soloUser.userName); //For data entry purpose only. Will be provided by Barcode
-						scanf("%d", &j);
-					}
-					else{
-						printf("Invalid Hopper\n"); //For data entry purpose only. Will be provided by Barcode
-					}
-				}
-				break;
-			//Password altercation menu. Digit guard not in place yet.
-			case 4:
-				if(soloUser.passAct==false)
-				{
-					printf("Would you like to enable a password? 1 = Yes, 2 = No\n");
-					scanf("%d",&j);
-					if(j==1)
-					{
-						//New password, so can assum will enter loop
-						while(lenHelper(soloUser.userPass)<3 || lenHelper(soloUser.userPass)>5)
-						{
-							printf("What pin would you like to set? (Up to 5 digits)\n");
-							scanf("%d",&soloUser.userPass);
-							if(lenHelper(soloUser.userPass)<3)
-							{
-								printf("Passwords of shorter than 3 digit length are not accepted.\n");
-							}
-							else if(lenHelper(systemPassword)>5)
-							{
-								printf("Passwords greters than 5 digit length are not accepted.\n");
-							}
-						}
-					}
-				}
-				else{
-					printf("Would you like to: 1 = Remove your password, 2 = Change your password, 3 = Return?\n");
-					scanf("%d",&j);
-					if(j==1 || j==2)
-					{
-						//REquires current password before changing
-						printf("Enter your current password:\n");
-						scanf("%d",&k);
-						if(k==soloUser.userPass)
-						{
-							if(j==1)
-							{
-								soloUser.passAct=false;
-								soloUser.userPass=0;
-								printf("Password removed\n");
-							}
-							else{
-								//Slightly different than other password updates as it saves original incase of exiting	
-								k=0;
-								while(lenHelper(k)<3 || lenHelper(k)>5)
-								{
-									printf("What pin would you like to set? (Up to 5 digits)\n");
-									scanf("%d",&k);
-									if(lenHelper(k)<3)
-									{
-										printf("Passwords of shorter than 3 digit length are not accepted.\n");
-									}
-									else if(lenHelper(k)>5)
-									{
-										printf("Passwords greters than 5 digit length are not accepted.\n");
-									}
-									else{
-										soloUser.userPass=k;
-									}
-								}
-							}
-						}
-						else{
-							printf("Wrong password, returning to menu\n");
-						}
-					}
-				}
-				break;
-			case 5:
-				return(soloUser);
-				break;
-			default:
-				printf("Invalid Menu Selection\n");
-				break;	
+	int i, PID;
+	for(i=0;i<processInfo->numProcess;i++)
+	{
+		//Only allows creation if parents process. This way it generate a process for each user and each break the for loop
+		if(PID!=0)
+		{
+			processInfo->userChild[i] = true;
+			PID = fork();
+			processInfo->userProcessID[i]=PID;
+		}
+		else{
+			break;	
 		}
 	}
+	return(i);
+}
+//Digit length function
+int lenHelper(int x) 
+{
+    if(x>=1000000000) return 10;
+    if(x>=100000000) return 9;
+    if(x>=10000000) return 8;
+    if(x>=1000000) return 7;
+    if(x>=100000) return 6;
+    if(x>=10000) return 5;
+    if(x>=1000) return 4;
+    if(x>=100) return 3;
+    if(x>=10) return 2;
+    return 1;
+}
+//Reads from the save file to load prefernces from a shutdown. Requires a password on first line of save file and the terminator string on the second to function
+//Terminating string is 1234567890
+int load(user *Users)
+{
+	char temp[50];
+	int i=0;
+	int j;
+	FILE * filePtr;
+	filePtr = fopen("save.txt","r");
+	fgets(temp, 50, filePtr);
+	sscanf(temp, "%d", &systemPassword);
+	while(strcmp(fgets(temp, 50, filePtr),"1234567890\n")!=0)
+	{
+		temp[strlen(temp)-1] = '\0';
+		strcpy(Users[i].userName,temp);
+		fgets(temp, 50, filePtr);
+		for(j=0; j<6; j++)
+		{	
+			if(temp[2*j]=='1')
+			{
+				Users[i].hopperAct[j] = true;
+			}
+			else{
+				Users[i].hopperAct[j] = false;
+			}
+		}
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperSize[0], &Users[i].hopperSize[1], &Users[i].hopperSize[2], &Users[i].hopperSize[3], &Users[i].hopperSize[4], &Users[i].hopperSize[5]);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperNumDisp[0], &Users[i].hopperNumDisp[1], &Users[i].hopperNumDisp[2], &Users[i].hopperNumDisp[3], &Users[i].hopperNumDisp[4], &Users[i].hopperNumDisp[5]);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperTimes[0], &Users[i].hopperTimes[1], &Users[i].hopperTimes[2], &Users[i].hopperTimes[3], &Users[i].hopperTimes[4], &Users[i].hopperTimes[5]);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperDays[0], &Users[i].hopperDays[1], &Users[i].hopperDays[2], &Users[i].hopperDays[3], &Users[i].hopperDays[4], &Users[i].hopperDays[5]);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d", &Users[i].userTone);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d %d %d", &Users[i].userAlarms[0], &Users[i].userAlarms[1], &Users[i].userAlarms[2]);
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d", &j);
+		if(j==1)
+		{
+			Users[i].passAct = true;
+		}
+		else{
+			Users[i].passAct = false;
+		}
+		fgets(temp, 50, filePtr);
+		sscanf(temp, "%d", &Users[i].userPass);
+		i++;
+	}
+	return(i);
+}
+//Password menu which has a backout. Otherwise returns new valid intgerer password. Returns 0 on invalid or backout.
+int passBounds()
+{
+	int i=0;
+	while(lenHelper(i)<3 || lenHelper(i)>5)
+	{
+		printf("Please choose a Password (or input 000 to return to previous Menu)\n");
+		scanf("%d", &i);
+		if(i==000)
+		{
+			return(0);
+		}
+		else if(lenHelper(i)<3)
+		{
+			printf("Passwords of shorter than 3 digit length are not accepted.\n");
+		}
+		else if(lenHelper(i)>5)
+		{
+			printf("Passwords greters than 5 digit length are not accepted.\n");
+		}
+	}
+	return(i);
 }
 //Writes all current configurations to save text file in storage arrangement seen in README
 //Terminates with the system known string
@@ -434,59 +453,6 @@ void save(user* Users, int numUsers)
 	fprintf(filePtr,"1234567890\n");
 	fclose(filePtr);
 }
-//Reads from the save file to load prefernces from a shutdown. Requires a password on first line of save file and the terminator string on the second to function
-//Terminating string is 1234567890
-int load(user *Users)
-{
-	char temp[50];
-	int i=0;
-	int j;
-	FILE * filePtr;
-	filePtr = fopen("save.txt","r");
-	fgets(temp, 50, filePtr);
-	sscanf(temp, "%d", &systemPassword);
-	while(strcmp(fgets(temp, 50, filePtr),"1234567890\n")!=0)
-	{
-		temp[strlen(temp)-1] = '\0';
-		strcpy(Users[i].userName,temp);
-		fgets(temp, 50, filePtr);
-		for(j=0; j<6; j++)
-		{	
-			if(temp[2*j]=='1')
-			{
-				Users[i].hopperAct[j] = true;
-			}
-			else{
-				Users[i].hopperAct[j] = false;
-			}
-		}
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperSize[0], &Users[i].hopperSize[1], &Users[i].hopperSize[2], &Users[i].hopperSize[3], &Users[i].hopperSize[4], &Users[i].hopperSize[5]);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperNumDisp[0], &Users[i].hopperNumDisp[1], &Users[i].hopperNumDisp[2], &Users[i].hopperNumDisp[3], &Users[i].hopperNumDisp[4], &Users[i].hopperNumDisp[5]);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperTimes[0], &Users[i].hopperTimes[1], &Users[i].hopperTimes[2], &Users[i].hopperTimes[3], &Users[i].hopperTimes[4], &Users[i].hopperTimes[5]);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d %d %d %d %d %d", &Users[i].hopperDays[0], &Users[i].hopperDays[1], &Users[i].hopperDays[2], &Users[i].hopperDays[3], &Users[i].hopperDays[4], &Users[i].hopperDays[5]);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d", &Users[i].userTone);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d %d %d", &Users[i].userAlarms[0], &Users[i].userAlarms[1], &Users[i].userAlarms[2]);
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d", &j);
-		if(j==1)
-		{
-			Users[i].passAct = true;
-		}
-		else{
-			Users[i].passAct = false;
-		}
-		fgets(temp, 50, filePtr);
-		sscanf(temp, "%d", &Users[i].userPass);
-		i++;
-	}
-	return(i);
-}
 //The system setting menu of the GUI
 int systemSettings(user* Users, int numUsers)
 {
@@ -550,26 +516,17 @@ int systemSettings(user* Users, int numUsers)
 					break;
 				//System password change
 				case 4:
-					printf("Please input current system password\n");
+					printf("Please input current system password (or 000 to return to System Menu)\n");
 					scanf("%d",&i);
 					if(i==systemPassword)
 					{
-						k=0;
-						while(lenHelper(k)<3 || lenHelper(k)>5)
+						k=passBounds();
+						if(k!=0)
 						{
-							printf("What pin would you like to set? (Up to 5 digits)\n");
-							scanf("%d",&k);
-							if(lenHelper(k)<3)
-							{
-								printf("Passwords of shorter than 3 digit length are not accepted.\n");
-							}
-							else if(lenHelper(k)>5)
-							{
-								printf("Passwords greters than 5 digit length are not accepted.\n");
-							}
-							else{
-								systemPassword=k;
-							}
+							systemPassword = k;
+						}
+						else{
+							printf("Unsuccessful password change\n");
 						}
 					}
 					else{
@@ -590,8 +547,199 @@ int systemSettings(user* Users, int numUsers)
 
 	}
 }
-
-void watcherPID(int PID, int i, bool *userChild, int *userProcessID, user *Users, int numUsers)
+//Allows acces to Perscription changes, alarm tone and time changes, and password setting
+user userMenu(user soloUser)
+{
+	int menuSelect, i,j,k;
+	char temp[200];
+	char path[200];
+	FILE *fp;
+	//User Menu process loop
+	while(1)
+	{	
+		k=0;
+		j=1;
+		printf("Hello %s\nWhat would you like to do?\n1: Change Alarm Time\n2: Change Alarm Tone\n3: Update Perscription\n4: User Password Settings\n5: Return to Main Menu\n", soloUser.userName);
+		scanf("%d", &menuSelect);
+		switch(menuSelect){
+			//Leads to display allowing selection of which time to update
+			case 1:
+					//Will be a display window with 3 options to scroll between
+					soloUser = changeAlarm(soloUser);
+				break;
+			//Allows updating of tone number. Actual tone selection done during alarm sequence by reading preference
+			case 2:
+				printf("What alarm tone would you like to use?(1-16)\n");
+				scanf("%d",&j);
+				if(j>16 || j<0)
+				{
+					printf("Invalid alarm tone\n");
+				}
+				else{
+					soloUser.userTone = j;
+				}
+				break;
+			//Allows addition of new hopper to perscription. Not realistic, as it will only be a barcode scan
+			case 3:
+					//Will likely call the barcode function used after name input at new user menu
+				i=0;
+				j=0;
+				while(i!=1)
+				{
+					system("raspistill -o image.jpg");
+					i=0;
+					
+					//usleep(2000000);
+					fp = popen("zbarimg image.jpg", "r");
+					if (fp == NULL)
+					{
+						printf("Crash\n");
+						strcpy(soloUser.userName,"delete");
+						return(soloUser);
+					}
+					//usleep(4000000);
+					if(fgets(path, 200, fp)==NULL)
+					{
+						strcpy(path,"null");
+					}
+					else{
+						path[strlen(path)-1]='\0';		
+					}
+					//printf("!!!%s!!!\n", path);
+					if(j==4)
+					{
+						printf("Invalid barcode. Too many invalid scans. Returning to previous menu\n");
+						break;
+					}
+					else if (path[0]=='Q')
+					{	
+						printf("Successful barcode scan\n");
+						i=1;
+					}
+					else if(path[0]=='n')
+					{
+						printf("Invalid barcode. Rescanning");
+						i=0;
+						j++;
+					}
+				pclose(fp);
+				//printf("!!!%s!!!\n", path);
+				//usleep(2000000);
+				}
+				//system("zbarimg image.jpg");
+				if(i==1)
+				{
+					//printf("%s\n",path);
+					for(j=0; j<6; j++)
+					{
+						if(path[8+j]=='1')
+						{
+							soloUser.hopperAct[j]=true;
+						}
+						else
+						{
+							soloUser.hopperAct[j]=false;
+						}
+						soloUser.hopperSize[j] = path[14+j] - '0';	
+						soloUser.hopperNumDisp[j] = path[20+j] - '0';
+						soloUser.hopperTimes[j] = path[26+j] - '0';
+					}
+					//printf("Hi\n");
+					for(j=0;j<7;j++)
+					{
+						strncpy(temp, &path[32+(7*j)],7);
+						soloUser.hopperDays[j]=atoi(temp);
+					}
+					//printf("Hi\n");
+				}
+				break;
+			//Password altercation menu. Digit guard not in place yet.
+			case 4:
+				if(soloUser.passAct==false)
+				{
+					printf("Would you like to enable a password? 1 = Yes, 2 = No\n");
+					scanf("%d",&j);
+					if(j==1)
+					{
+						//New password, so can assume will enter loop
+						k = passBounds();
+						if(k!=0)
+						{
+							soloUser.passAct = true;
+							soloUser.userPass = k;
+						}
+						else{
+							printf("Unsuccessful password creation\n");
+						}
+					}
+				}
+				else{
+					printf("Would you like to: 1 = Remove your password, 2 = Change your password, 3 = Return?\n");
+					scanf("%d",&j);
+					if(j==1 || j==2)
+					{
+						//REquires current password before changing
+						printf("Enter your current password:\n");
+						scanf("%d",&k);
+						if(k==soloUser.userPass)
+						{
+							if(j==1)
+							{
+								soloUser.passAct=false;
+								soloUser.userPass=0;
+								printf("Password removed\n");
+							}
+							else{
+								//Slightly different than other password updates as it saves original incase of exiting	
+									k = passBounds();
+									if(k!=0)
+									{
+										soloUser.userPass=k;
+										soloUser.passAct=true;
+									}
+									else{
+										printf("Unsuccessful password change\n");
+									}
+								}
+							}
+						}
+						else{
+							printf("Wrong password, returning to menu\n");
+						}
+				}
+				break;
+			case 5:
+				return(soloUser);
+				break;
+			default:
+				printf("Invalid Menu Selection\n");
+				break;	
+		}
+	}
+}
+int userSelect(int numUsers)
+{
+	int i=0;
+	while(1)
+	{	
+		printf("Which User would you like to select? (or 000 to return to previous menu)\n");
+		scanf("%d",&i);
+		if(i==0)
+		{
+			return(99);
+		}
+		else if(i<1 || i>numUsers)
+		{
+			printf("Invalid User\n");
+		}
+		else
+		{
+			return(i-1);
+		}
+	}
+}
+//Function to catch child PID and lauch it into infinite alarm watch loop
+void watcherPID(int PID, int i, procInfo processInfo, user *Users)
 {
 	char temp[100];
 	time_t rawtime;
@@ -607,16 +755,16 @@ void watcherPID(int PID, int i, bool *userChild, int *userProcessID, user *Users
 		//Mark all userChild processes as false except one this PID is servicing
 		for(j=i-1;j>-1;j--)
 		{
-			userChild[j] = false;
+			processInfo.userChild[j] = false;
 		}
 		for(j=i+1;j<5;j++)
 		{
-			userChild[j] = false;
+			processInfo.userChild[j] = false;
 		}
 		//Locate process index and begin sleep/watch cycle
 		for(i=0;i<5;i++)
 		{
-			if(userChild[i]==true)
+			if(processInfo.userChild[i]==true)
 			{
 				//Process Loop
 				while(1)
@@ -641,7 +789,7 @@ void watcherPID(int PID, int i, bool *userChild, int *userProcessID, user *Users
 							else{
 								printf("%d:%d\n",hr ,min);
 							}
-							numUsers = load(Users);
+							processInfo.numProcess = load(Users);
 							//printf("Hi\n");
 							for(k=0; k<6; k++)
 							{
@@ -682,17 +830,17 @@ int main()
   	int date;
   	int hr,min,sec,yr;
   	int PID;
-  	bool userChild[5] = {false, false, false, false};
-	int userProcessID[5] = {0, 0, 0, 0, 0};
+  	procInfo processInfo;
 	systemPassword=0;
 
 	user * Users = malloc(sizeof(struct userData)*6);
 	for(i=0; i<5; i++);
 	{
 		Users[i]=clearUser(Users[i]);
-		userChild[i]=false;
+		processInfo.userChild[i]=false;
+		processInfo.userProcessID[i]=0;
 	}
-
+	processInfo.numProcess=0;
 	//Calls load function to read users config from save text
 	numUsers = load(Users);
 
@@ -713,41 +861,30 @@ int main()
 	//Functioning loop of the process
 	while(1)
 	{
+		processInfo.numProcess=numUsers;
 		//Killing of all old, possibly outdated processes to make way for new ones
   		for(i=0;i<5;i++)
   		{
-  			if(userChild[i] == true)
+  			if(processInfo.userChild[i] == true)
   			{
   				printf("Killing %d\n", i+1);
-  				kill(userProcessID[i], SIGTERM);
+  				kill(processInfo.userProcessID[i], SIGTERM);
   			}
   		}
   		//Creates processes equal to that of users
-  		for(i=0;i<numUsers;i++)
+  		i = launchWatcherPID(&processInfo);
+  		//Child Process catch function
+  		if(processInfo.userProcessID[i-1]==0)
   		{
-  			//Only allows creation if parents process. This way it generate a process for each user and each break the for loop
-  			if(PID!=0)
-  			{
-  				userChild[i] = true;
-  				PID = fork();
-  				userProcessID[i]=PID;
-  			}
-  			else{
-  				break;	
-  			}
-  		}
-  		//Child Process 
-  		if(PID==0)
-  		{
-  			watcherPID(PID, i-1, userChild, userProcessID, Users, numUsers);
+  			watcherPID(PID, i-1, processInfo, Users);
   		}
   		//Wipe PID init for deleted processes
   		for(i=numUsers; i<5;i++)
   		{
-  			userChild[i] = false;
+  			processInfo.userChild[i] = false;
   		}
 
-		//First lists current users
+		//LIST USERS
 		printf("\nUsers:\n\n");
 		if(numUsers==0)
 		{
@@ -757,7 +894,9 @@ int main()
 		{
 			printf("\nUser %d:\nName: %s\n\n", i+1, Users[i].userName);
 		}
-		//Presents Main menu options
+
+
+		//MAIN MENU PRESENTATION AND FUNCTIONALITY
 		printf("\nWhat would you like to do?\n1: Select User Menu (followed by user #)\n2: System Settings\n3: Save & Exit\n\n");
 
 		scanf("%d", &menuSelect);
@@ -765,10 +904,15 @@ int main()
 		switch(menuSelect){
 			case 1:
 				//userMenu unfinnished
-				scanf("%d", &menuSelect);
-				printf("Selecting User\n");
-				Users[menuSelect-1] = userMenu(Users[menuSelect-1]);
-				save(Users, numUsers);
+				j = userSelect(numUsers);
+				if(j!=99)
+				{	
+					Users[j] = userMenu(Users[j]);
+					save(Users, numUsers);
+				}
+				else{
+					printf("Return to MAIN MENU\n");
+				}
 				break; 
 			case 2:
 				//System setting completed. Needs thorough testing
@@ -783,10 +927,10 @@ int main()
 				//Cleans up process' on exit
 				for(i=0;i<5;i++)
 		  		{
-		  			if(userChild[i] == true)
+		  			if(processInfo.userChild[i] == true)
 		  			{
 		  				printf("Killing %d\n", i+1);
-		  				kill(userProcessID[i], SIGTERM);
+		  				kill(processInfo.userProcessID[i], SIGTERM);
 		  			}
 		  		}
 				exit(0);
@@ -795,7 +939,9 @@ int main()
 				printf("Invalid Input\n");
 				break; 
 		}
-		//Clean up Users Array incase of deletion previous loop (ie User1, User2, "deleted user", User4 -> User1, User2, User3)
+
+
+		//ARRAY COMPRESS TO CLEAN UP ANY DELETED USER IN THE LAST CYCLE
 		for(i=0;i<numUsers;i++)
 		{
 			if(strcmp(Users[i].userName,"delete")==0)
