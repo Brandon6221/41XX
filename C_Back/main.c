@@ -146,7 +146,7 @@ user addUser(user soloUser)
 	//system("zbarimg image.jpg");
 	if(i==1)
 	{
-		printf("%s\n",path);
+		//printf("%s\n",path);
 		for(j=0; j<6; j++)
 		{
 			if(path[8+j]=='1')
@@ -161,13 +161,13 @@ user addUser(user soloUser)
 			soloUser.hopperNumDisp[j] = path[20+j] - '0';
 			soloUser.hopperTimes[j] = path[26+j] - '0';
 		}
-		printf("Hi\n");
+		//printf("Hi\n");
 		for(j=0;j<7;j++)
 		{
 			strncpy(temp, &path[32+(7*j)],7);
 			soloUser.hopperDays[j]=atoi(temp);
 		}
-		printf("Hi\n");
+		//printf("Hi\n");
 	}
 	else{
 		strcpy(soloUser.userName,"delete");
