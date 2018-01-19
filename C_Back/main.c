@@ -50,13 +50,93 @@ user addUser(user soloUser)
 {
 	int menuSelect;
 	int activate;
+	FILE *fp;
 	int i,j;
+	char path[200];
+	char temp[200];
 	printf("Enter name for user\n"); 
 	scanf("%s", soloUser.userName); //Enter user name using touch interface to scroll though letters and continue options
 	if(strlen(soloUser.userName)<1)
 	{
 		strcpy(soloUser.userName,"delete"); //Null name marked for auto remove
 	}
+	i=0;
+	j=0;
+	while(i!=1)
+	{
+		system("raspistill -o image.jpg");
+		i=0;
+		
+		//usleep(2000000);
+		fp = popen("zbarimg image.jpg", "r");
+		if (fp == NULL)
+		{
+			printf("Crash\n");
+			strcpy(soloUser.userName,"delete");
+			return(soloUser);
+		}
+		//usleep(4000000);
+		if(fgets(path, 200, fp)==NULL)
+		{
+			strcpy(path,"null");
+		}
+		else{
+			path[strlen(path)-1]='\0';		
+		}
+		//printf("!!!%s!!!\n", path);
+		if(j==4)
+		{
+			printf("Invalid barcode. Too many invalid scans. Returning to previous menu\n");
+			break;
+		}
+		else if (path[0]=='Q')
+		{	
+			printf("Successful barcode scan\n");
+			i=1;
+		}
+		else if(path[0]=='n')
+		{
+			printf("Invalid barcode. Rescanning");
+			i=0;
+			j++;
+		}
+	pclose(fp);
+	//printf("!!!%s!!!\n", path);
+	//usleep(2000000);
+	}
+	//system("zbarimg image.jpg");
+	if(i==1)
+	{
+		printf("%s\n",path);
+		for(j=0; j<6; j++)
+		{
+			if(path[8+j]=='1')
+			{
+				soloUser.hopperAct[j]=true;
+			}
+			else
+			{
+				soloUser.hopperAct[j]=false;
+			}
+			soloUser.hopperSize[j] = path[14+j] - '0';	
+			soloUser.hopperNumDisp[j] = path[20+j] - '0';
+			soloUser.hopperTimes[j] = path[26+j] - '0';
+		}
+		printf("Hi\n");
+		for(j=0;j<7;j++)
+		{
+			strncpy(temp, &path[32+(7*j)],7);
+			soloUser.hopperDays[j]=atoi(temp);
+		}
+		printf("Hi\n");
+	}
+	else{
+		strcpy(soloUser.userName,"delete");
+		return(soloUser);
+	}	
+	
+	//printf("!!!%s!!!", temp);
+
 	//This loop will be a prompt to scan a barcode. Process data and store. Still needs error checking for in range numbers
 	/*
 	Start barcode scan process after user name confirmed
@@ -66,7 +146,7 @@ user addUser(user soloUser)
 	if proper, accept barcode and place data in the users struct
 	If improper print barcode error and return to system menu
 	*/
-	while(menuSelect!=2)
+	/*while(menuSelect!=2)
 	{
 		printf("Enter Hopper number to activate (1-6)\n"); //For data entry purpose only. Will be provided by Barcode
 		scanf("%d", &activate);
@@ -87,7 +167,7 @@ user addUser(user soloUser)
 		else{
 			printf("Invalid Hopper\n"); //For data entry purpose only. Will be provided by Barcode
 		}
-	}
+	}*/
 	printf("Would you like to change preset alarm times?(8AM, 2PM, 8PM) 1 = Yes, 2 = No\n"); //Change preset Alarms on account creation
 	scanf("%d", &activate);
 
